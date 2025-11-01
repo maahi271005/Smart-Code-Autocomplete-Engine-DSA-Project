@@ -1,9 +1,0 @@
-/node_modules
-/out
-/dist
-.vscode
-.env
-.DS_Store
-*.log
-
-dsaenv/
