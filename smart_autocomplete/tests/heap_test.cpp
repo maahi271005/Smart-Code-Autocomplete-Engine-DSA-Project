@@ -31,46 +31,38 @@ void test2() {
     cout << "Heap fixed size tests passed"<<endl;
 }
 
-void testHeapGetAll() {
+void test3() {
     MinHeap heap(5);
 
-    heap.insert(5.0, "five");
-    heap.insert(3.0, "three");
-    heap.insert(7.0, "seven");
-    heap.insert(1.0, "one");
+    heap.insert(5.0,"five");
+    heap.insert(3.0,"three");
+    heap.insert(7.0,"seven");
+    heap.insert(1.0,"one");
 
-    auto all = heap.getAll();
+    auto all=heap.getAll();
 
-    assert(all.size() == 4);
-    assert(all[0].first >= all[1].first);
-    assert(all[1].first >= all[2].first);
-    assert(all[2].first >= all[3].first);
-
-    std::cout << "✓ Heap GetAll tests passed\n";
+    assert(all.size()==4);
+    assert(all[0].first>=all[1].first);
+    assert(all[1].first>=all[2].first);
+    assert(all[2].first>=all[3].first);
+    cout << "Heap getall tests passed"<<endl;
 }
-
-// Test basic empty checks
-void testHeapEmpty() {
+void test4() {
     MinHeap heap(5);
-
     assert(heap.isEmpty());
-    assert(heap.size() == 0);
-
-    heap.insert(1.0, "one");
-
+    assert(heap.size()==0);
+    heap.insert(1.0,"one");
     assert(!heap.isEmpty());
-
-    std::cout << "✓ Heap Empty tests passed\n";
+    cout << "Heap empty tests passed"<<endl;
 }
 
-int main() {
-    std::cout << "\nRunning MinHeap Tests...\n\n";
-
-    testHeapInsertAndExtract();
-    testHeapFixedSize();
-    testHeapGetAll();
-    testHeapEmpty();
-
-    std::cout << "\n✅ All MinHeap tests passed!\n";
+int main(){
+    cout<<"Running minheap tests..."<<endl;
+    test1();
+    test2();
+    test3();
+    test4();
+    cout<<"All minheap tests passed!"<<endl;
     return 0;
 }
+
