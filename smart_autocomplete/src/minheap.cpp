@@ -30,7 +30,7 @@ void MinHeap::insert(double score,const string& word) {
         heapifyUp(heap.size()-1);
     } 
     else if(score>heap[0].first){
-        heap[0]={score, word};
+        heap[0]={score,word};
         heapifyDown(0);
     }
 }
@@ -65,3 +65,4 @@ vector<pair<double,string>> MinHeap::getAll(){
 void MinHeap::clear() {
     heap.clear();
 }
+
