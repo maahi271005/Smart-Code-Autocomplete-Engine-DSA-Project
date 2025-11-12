@@ -59,13 +59,13 @@ private:
 
 
 public:
-    AutocompleteEngine() 
-        : cache(50), 
-        freqStore("data/frequencies.txt"), 
+    AutocompleteEngine()
+        : cache(50),
+        freqStore("data/frequency.txt"),
         ranker(&freqStore, &graph),
         useSubstringSearch(false){
-        
-        loadSeeds("data/seeds.txt");
+
+        loadSeeds("data/words.txt");
     }
 
     std::vector<std::pair<std::string, double>> getSuggestions(const std::string& prefix, int k = 5){

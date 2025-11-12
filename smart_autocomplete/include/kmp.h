@@ -1,9 +1,10 @@
 #ifndef KMP_H
 #define KMP_H
-using namespace std;
 
 #include <string>
 #include <vector>
+
+using namespace std;
 
 class KMP {
 private:
@@ -13,3 +14,4 @@ public:
     static vector<int> findAll(const string& text, const string& pattern);
 };
 
+#endif

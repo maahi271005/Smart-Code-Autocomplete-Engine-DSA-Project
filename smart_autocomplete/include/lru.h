@@ -26,12 +26,12 @@ private:
     unordered_map<string, Node*>cacheMap;
     Node* head;
     Node* tail;
-    
+
     void addNodeToFront(Node* node);
     void removeNode(Node* node);
     void moveNodeToFront(Node* node);
     void removeLRUNode();
-    
+
 public:
     lru_cache(int cap);
     vector<string>get(const string& key);
@@ -39,5 +39,7 @@ public:
     bool exists(const string& key);
     void clear();
 };
+
+using LRUCache = lru_cache;
 
 #endif
