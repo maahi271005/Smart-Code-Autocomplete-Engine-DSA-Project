@@ -10,12 +10,12 @@ void testTSTInsertAndSearch() {
     tst.insert("help");
     tst.insert("hell");
     
-    assert(tst.search("hello") == true);
-    assert(tst.search("world") == true);
-    assert(tst.search("help") == true);
-    assert(tst.search("hell") == true);
-    assert(tst.search("he") == false);
-    assert(tst.search("worlds") == false);
+    assert(tst.search("hello")==true);
+    assert(tst.search("world")==true);
+    assert(tst.search("help")==true);
+    assert(tst.search("hell")==true);
+    assert(tst.search("he")==false);
+    assert(tst.search("worlds")==false);
     
     std::cout << "✓ TST Insert and Search tests passed" << std::endl;
 }
@@ -41,7 +41,6 @@ void testTSTPrefixSearch() {
         if (word=="print"){
             foundPrint = true;
         }
-        
         if (word=="printf"){
             foundPrintf = true;
         }
