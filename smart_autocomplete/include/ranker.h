@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include "freq_store.h"
 #include "graph.h"
 
@@ -20,3 +21,4 @@ class Ranker {
 };
 
 #endif
+
