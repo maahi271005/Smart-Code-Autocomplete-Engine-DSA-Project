@@ -1,0 +1,4 @@
+for 1
+const_cast 1
+continue 1
+delete 1
