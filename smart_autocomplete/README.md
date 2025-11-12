@@ -80,11 +80,11 @@ This results in fast, memory-efficient, and intelligent autocomplete suggestions
 ---
 
 ## Features
-Insert code keywords or phrases  
-Autocomplete suggestions based on prefix  
-Suggestions ranked by frequency  
-Snippet support (e.g., `fori` → `for (int i = 0; i < n; i++)`)  
-Practical demonstration of Trie + Hash Map + Heap working together
+- Insert code keywords or phrases  
+- Autocomplete suggestions based on prefix  
+- Suggestions ranked by frequency  
+- Snippet support (e.g., `fori` → `for (int i = 0; i < n; i++)`)  
+- Practical demonstration of Trie + Hash Map + Heap working together
 
 ## Tech Stack Used
 
@@ -117,8 +117,8 @@ Practical demonstration of Trie + Hash Map + Heap working together
 ## Setup Instructions
 ---
 ### 1. Clone the repository
-git clone https://github.com/maahi271005/Smart-Code-Autocomplete-Engine-DSA-Project
-cd smart_autocomplete
+- git clone https://github.com/maahi271005/Smart-Code-Autocomplete-Engine-DSA-Project
+- cd smart_autocomplete
 
 ---
 
@@ -127,27 +127,27 @@ cd smart_autocomplete
 
 If your project uses Python utilities or scripts (e.g., preprocessing):
 
-python3 -m venv dsavenv
-source dsavenv/bin/activate
+- python3 -m venv dsavenv
+- source dsavenv/bin/activate
 
 ---
 
 ### 3. Install build tools (for Linux/Ubuntu)
-sudo apt update
-sudo apt install build-essential
+- sudo apt update
+- sudo apt install build-essential
 
 ---
 ### 4. Build the project
 
 Use the provided Makefile:
 
-make clean
-make
+- make clean
+- make
 
 
 This will generate the executable:
 
-./smart_autocomplete
+- ./smart_autocomplete
 
 ---
 ### 5. Run the program
