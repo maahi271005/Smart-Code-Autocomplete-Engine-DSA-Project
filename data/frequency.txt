@@ -1,6 +1,6 @@
-const 1
-printf 1
-continue 3
-for 1
-int 1
 std 1
+int 1
+for 2
+continue 3
+printf 1
+const 1
