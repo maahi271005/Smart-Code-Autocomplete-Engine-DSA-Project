@@ -12,6 +12,7 @@
 #include "../include/graph.h"
 #include "../include/freq_store.h"
 #include "../include/ranker.h"
+#include "../include/phrase_store.h"
 
 class AutocompleteEngine {
 private:
@@ -21,8 +22,10 @@ private:
     CooccurrenceGraph graph;
     Ranker ranker;
     UndoRedoStack undoRedo;
+    PhraseStore phraseStore;
     std::string lastAccepted;
     bool useSubstringSearch;
+    bool usePhraseCompletion;
 
     void loadSeeds(const std::string& filename) {
         std::ifstream file(filename);
@@ -62,10 +65,13 @@ public:
     AutocompleteEngine()
         : cache(50),
         freqStore("data/frequency.txt"),
+        phraseStore("data/phrases.txt"),
         ranker(&freqStore, &graph),
-        useSubstringSearch(false){
+        useSubstringSearch(false),
+        usePhraseCompletion(true){
 
         loadSeeds("data/words.txt");
+        std::cout << "Loaded " << phraseStore.getTotalPhrases() << " learned phrases." << std::endl;
     }
 
     std::vector<std::pair<std::string, double>> getSuggestions(const std::string& prefix, int k = 5){
@@ -145,8 +151,40 @@ public:
         std::cout << "Substring search: " << (useSubstringSearch ? "ON" : "OFF") << std::endl;
     }
 
+    void togglePhraseCompletion() {
+        usePhraseCompletion = !usePhraseCompletion;
+        std::cout << "Phrase completion: " << (usePhraseCompletion ? "ON" : "OFF") << std::endl;
+    }
+
+    void learnPhrase(const std::string& trigger, const std::string& fullText) {
+        phraseStore.addPhrase(trigger, fullText);
+        std::cout << "Learned phrase: \"" << fullText << "\" for trigger \"" << trigger << "\"" << std::endl;
+    }
+
+    std::vector<std::string> getPhraseSuggestions(const std::string& prefix) {
+        std::vector<std::string> suggestions;
+
+        if (!usePhraseCompletion) {
+            return suggestions;
+        }
+
+        // Get learned phrases for this prefix
+        auto phrases = phraseStore.getTopPhrases(prefix, 3);
+
+        for (const auto& phrase : phrases) {
+            suggestions.push_back(phrase.snippet);
+        }
+
+        return suggestions;
+    }
+
     void displayGraph() {
         graph.display();
+    }
+
+    void savePhrases() {
+        phraseStore.save();
+        std::cout << "Saved " << phraseStore.getTotalPhrases() << " learned phrases." << std::endl;
     }
 
     void showHelp() {
@@ -154,14 +192,19 @@ public:
         std::cout << "\nCommands:" << std::endl;
         std::cout << ":help - Show this help message" << std::endl;
         std::cout << ":exit or :q - Exit the program" << std::endl;
-        std::cout << " :bump <token> - Increase frequency of a token" << std::endl;
+        std::cout << ":bump <token> - Increase frequency of a token" << std::endl;
         std::cout << ":undo - Undo last accepted token" << std::endl;
         std::cout << ":redo - Redo last undone token" << std::endl;
-        std::cout << ":toggle_contains- Toggle substring search" << std::endl;
-        std::cout << ":graph  - Display co-occurrence graph" << std::endl;
+        std::cout << ":toggle_contains - Toggle substring search" << std::endl;
+        std::cout << ":toggle_phrases - Toggle phrase completion" << std::endl;
+        std::cout << ":learn <trigger> <full_text> - Manually teach a phrase" << std::endl;
+        std::cout << ":graph - Display co-occurrence graph" << std::endl;
+        std::cout << ":save - Save learned phrases to disk" << std::endl;
         std::cout << "\nUsage:" << std::endl;
         std::cout << " - Type a prefix to get suggestions" << std::endl;
         std::cout << " - Select by number or type the full token" << std::endl;
+        std::cout << " - After accepting, type full code (e.g., for(i=0;i<n;i++))" << std::endl;
+        std::cout << " - Press Enter to learn the phrase, or skip" << std::endl;
         std::cout << std::endl;
     }
 };
@@ -209,8 +252,31 @@ int main() {
             continue;
         }
 
+        if (input == ":toggle_phrases") {
+            engine.togglePhraseCompletion();
+            continue;
+        }
+
         if (input == ":graph") {
             engine.displayGraph();
+            continue;
+        }
+
+        if (input == ":save") {
+            engine.savePhrases();
+            continue;
+        }
+
+        if (input.substr(0, 7) == ":learn ") {
+            std::string rest = input.substr(7);
+            size_t spacePos = rest.find(' ');
+            if (spacePos != std::string::npos) {
+                std::string trigger = rest.substr(0, spacePos);
+                std::string fullText = rest.substr(spacePos + 1);
+                engine.learnPhrase(trigger, fullText);
+            } else {
+                std::cout << "Usage: :learn <trigger> <full_text>" << std::endl;
+            }
             continue;
         }
 
@@ -221,15 +287,24 @@ int main() {
         }
 
         auto suggestions = engine.getSuggestions(input, 5);
+        auto phraseSuggestions = engine.getPhraseSuggestions(input);
 
-        if (suggestions.empty()) {
+        if (suggestions.empty() && phraseSuggestions.empty()) {
             std::cout << "No suggestions found for '" << input << "'" << std::endl;
             continue;
         }
 
         std::cout << "\nSuggestions:" << std::endl;
+
+        // Show learned phrases first (marked with [PHRASE])
+        int index = 1;
+        for (const auto& phrase : phraseSuggestions) {
+            std::cout << "  " << index++ << ". [PHRASE] " << phrase << std::endl;
+        }
+
+        // Then show regular token suggestions
         for (size_t i = 0; i < suggestions.size(); i++) {
-            std::cout << "  " << (i + 1) << ". " << suggestions[i].first 
+            std::cout << "  " << index++ << ". " << suggestions[i].first
                     << " (score=" << suggestions[i].second << ")" << std::endl;
         }
 
@@ -241,21 +316,57 @@ int main() {
             continue;
         }
 
-        if (isdigit(choice[0]) && choice.length() == 1) {
-            int num = choice[0] - '0';
-            if (num >= 1 && num <= suggestions.size()) {
-                engine.acceptSuggestion(suggestions[num - 1].first);
-            }
-            else{
+        std::string acceptedToken;
+        bool isPhrase = false;
+
+        if (isdigit(choice[0]) && choice.length() <= 2) {
+            int num = std::stoi(choice);
+            int totalSuggestions = phraseSuggestions.size() + suggestions.size();
+
+            if (num >= 1 && num <= totalSuggestions) {
+                if (num <= phraseSuggestions.size()) {
+                    // Selected a phrase
+                    acceptedToken = phraseSuggestions[num - 1];
+                    isPhrase = true;
+                    std::cout << "Accepted phrase: " << acceptedToken << std::endl;
+                } else {
+                    // Selected a regular token
+                    int tokenIndex = num - phraseSuggestions.size() - 1;
+                    acceptedToken = suggestions[tokenIndex].first;
+                    engine.acceptSuggestion(acceptedToken);
+
+                    // Prompt for phrase learning
+                    std::cout << "\nType complete code for '" << acceptedToken
+                              << "' (or press Enter to skip learning): ";
+                    std::string fullCode;
+                    std::getline(std::cin, fullCode);
+
+                    if (!fullCode.empty() && fullCode != acceptedToken) {
+                        engine.learnPhrase(acceptedToken, fullCode);
+                    }
+                }
+            } else {
                 std::cout << "Invalid selection" << std::endl;
             }
         }
         else{
+            // Manual token entry
             bool found = false;
             for (const auto& [token, score] : suggestions) {
                 if (token == choice) {
                     engine.acceptSuggestion(token);
+                    acceptedToken = token;
                     found = true;
+
+                    // Prompt for phrase learning
+                    std::cout << "\nType complete code for '" << acceptedToken
+                              << "' (or press Enter to skip learning): ";
+                    std::string fullCode;
+                    std::getline(std::cin, fullCode);
+
+                    if (!fullCode.empty() && fullCode != acceptedToken) {
+                        engine.learnPhrase(acceptedToken, fullCode);
+                    }
                     break;
                 }
             }
