@@ -1,6 +1,11 @@
-const 1
-printf 1
-continue 3
-for 1
-int 1
+if 1
 std 1
+int 2
+for 3
+continue 3
+printf 1
+while 1
+include 6
+const 1
+for(i=0;i<n;i++) 5
+while(condition){continue;} 2
