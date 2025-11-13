@@ -105,8 +105,8 @@ private:
         }
 
         // Status bar
-        mvprintw(LINES - 2, 0, "Line %d, Col %d | %d phrases | Tab: Accept | Ctrl+P: Save Phrase | Ctrl+Q: Quit",
-                 cursorY + 1, cursorX + 1, phraseStore.getTotalPhrases());
+        mvprintw(LINES - 2, 0, "Line %d/%zu Col %d | %d phrases | Ctrl+H: Help | Ctrl+S: Save Phrase | Ctrl+Q: Quit",
+                 cursorY + 1, lines.size(), cursorX + 1, phraseStore.getTotalPhrases());
 
         // Position cursor - calculate display position relative to scroll
         int displayY = cursorY - scrollY;
@@ -139,7 +139,12 @@ private:
                 return false;
 
             case 16:  // Ctrl+P - Save phrase
+            case 19:  // Ctrl+S - Save phrase (alternative)
                 saveCurrentLineAsPhrase();
+                break;
+
+            case 8:   // Ctrl+H - Show help
+                showHelp();
                 break;
 
             case KEY_UP:
@@ -292,7 +297,7 @@ private:
                         lines[cursorY].insert(cursorX, "'");
                     }
 
-                    if (isalnum(ch)) {
+                    if (isalnum(ch) || ch == '#') {
                         triggerAutocomplete();
                     } else {
                         showingSuggestions = false;
@@ -372,7 +377,8 @@ private:
         int end = cursorX;
         int start = end;
 
-        while (start > 0 && (isalnum(line[start - 1]) || line[start - 1] == '_')) {
+        // Include alphanumeric, underscore, and # for preprocessor directives
+        while (start > 0 && (isalnum(line[start - 1]) || line[start - 1] == '_' || line[start - 1] == '#')) {
             start--;
         }
 
@@ -380,18 +386,129 @@ private:
         return line.substr(start, end - start);
     }
 
+    void showHelp() {
+        clear();
+
+        // Title
+        attron(A_BOLD);
+        mvprintw(1, 2, "=== SMART CODE AUTOCOMPLETE EDITOR - HELP ===");
+        attroff(A_BOLD);
+
+        int line = 3;
+
+        // Navigation
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "NAVIGATION:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "Arrow Keys       - Move cursor up/down/left/right");
+        mvprintw(line++, 4, "Enter            - New line (with smart indentation)");
+        mvprintw(line++, 4, "Backspace        - Delete character");
+        line++;
+
+        // Autocomplete
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "AUTOCOMPLETE:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "Type             - Auto-trigger suggestions as you type");
+        mvprintw(line++, 4, "Tab              - Accept selected suggestion");
+        mvprintw(line++, 4, "Up/Down          - Navigate suggestions (when popup open)");
+        mvprintw(line++, 4, "Esc              - Close suggestions popup");
+        line++;
+
+        // Phrase Learning
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "PHRASE LEARNING:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "Ctrl+S           - Save current line as reusable phrase");
+        mvprintw(line++, 4, "[PHRASE]         - Indicates learned phrase in suggestions");
+        mvprintw(line++, 4, "Phrases persist  - Saved in data/phrases.txt");
+        line++;
+
+        // Smart Features
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "SMART FEATURES:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "Auto-close       - ( ) { } [ ] \" \" ' ' auto-complete");
+        mvprintw(line++, 4, "Smart indent     - Auto-indent after { or (");
+        mvprintw(line++, 4, "Bracket match    - Press Enter between {} for auto-format");
+        mvprintw(line++, 4, "Scrolling        - Unlimited lines with auto-scroll");
+        line++;
+
+        // Other
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "OTHER COMMANDS:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "Ctrl+H           - Show this help screen");
+        mvprintw(line++, 4, "Ctrl+Q           - Quit editor");
+        line++;
+
+        // Data Structures
+        attron(A_UNDERLINE);
+        mvprintw(line++, 2, "POWERED BY 8 DATA STRUCTURES:");
+        attroff(A_UNDERLINE);
+        mvprintw(line++, 4, "1. TST (Ternary Search Tree)   - Prefix search O(m log n)");
+        mvprintw(line++, 4, "2. MinHeap                      - Top-K ranking O(n log k)");
+        mvprintw(line++, 4, "3. HashMap (PhraseStore)        - Phrase storage O(1)");
+        mvprintw(line++, 4, "4. HashMap (FreqStore)          - Frequency tracking O(1)");
+        mvprintw(line++, 4, "5. Graph (Co-occurrence)        - Context awareness O(1)");
+        mvprintw(line++, 4, "6. Stack                        - Undo/redo (internal) O(1)");
+        mvprintw(line++, 4, "7. LRU Cache                    - Query optimization O(1)");
+        mvprintw(line++, 4, "8. KMP Algorithm                - Pattern matching O(n+m)");
+        line++;
+
+        // Status
+        mvprintw(line++, 2, "Current Status:");
+        mvprintw(line++, 4, "Dictionary words: 10,000+");
+        mvprintw(line++, 4, "Learned phrases: %d", phraseStore.getTotalPhrases());
+        line++;
+
+        // Footer
+        attron(A_BOLD);
+        mvprintw(LINES - 2, 2, "Press any key to return to editor...");
+        attroff(A_BOLD);
+
+        refresh();
+        getch();
+    }
+
     void saveCurrentLineAsPhrase() {
         std::string line = lines[cursorY];
-        if (line.empty()) return;
 
-        size_t spacePos = line.find(' ');
-        std::string trigger = (spacePos != std::string::npos) ?
-                             line.substr(0, spacePos) : line;
+        // Remove leading/trailing spaces
+        size_t start = line.find_first_not_of(" \t");
+        if (start == std::string::npos || line.empty()) {
+            mvprintw(LINES - 1, 0, "[ERROR] Empty line, cannot save phrase (Press any key)");
+            refresh();
+            getch();
+            return;
+        }
+
+        line = line.substr(start);
+        size_t end = line.find_last_not_of(" \t");
+        if (end != std::string::npos) {
+            line = line.substr(0, end + 1);
+        }
+
+        // Extract trigger (first word or until opening bracket/paren/angle)
+        std::string trigger;
+        for (char c : line) {
+            if (c == ' ' || c == '(' || c == '{' || c == '[' || c == '<' || c == '>') {
+                break;
+            }
+            trigger += c;
+        }
+
+        if (trigger.empty()) {
+            mvprintw(LINES - 1, 0, "[ERROR] Cannot extract trigger (Press any key)");
+            refresh();
+            getch();
+            return;
+        }
 
         phraseStore.addPhrase(trigger, line);
         phraseStore.save();
 
-        mvprintw(LINES - 1, 0, "[OK] Phrase saved: '%s' -> '%s' (Press any key)",
+        mvprintw(LINES - 1, 0, "[OK] Phrase saved: '%s' -> '%s' (Press any key)          ",
                 trigger.c_str(), line.c_str());
         refresh();
         getch();
