@@ -8,12 +8,17 @@
 #include <cstring>
 #include <algorithm>
 #include <filesystem>
+#include <unordered_set>
 
 #include "tst.h"
 #include "phrase_store.h"
 #include "freq_store.h"
 #include "ranker.h"
 #include "graph.h"
+#include "kmp.h"
+#include "minheap.h"
+#include "lru.h"
+#include "stack.h"
 
 class BasicEditor {
 private:
@@ -21,7 +26,7 @@ private:
     std::vector<std::string> suggestions;
     std::vector<bool> isPhraseFlag;
     int cursorY, cursorX;
-    int scrollY;  // Add scroll offset
+    int scrollY;  
     bool showingSuggestions;
     int selectedSuggestion;
 
@@ -30,35 +35,41 @@ private:
     FreqStore freqStore;
     CooccurrenceGraph graph;
     Ranker ranker;
+    std::vector<std::string> dictionaryWords;
     std::string lastAcceptedWord;
 
-    // New: File management
+    // A) MinHeap for Top-K ranking
+    MinHeap suggestionHeap{10};
+
+    // B) LRU Cache for query caching
+    lru_cache suggestionCache{100};
+
+    // C) Stack for undo/redo
+    UndoRedoStack undoRedoStack;
+
     std::string currentFileName;
     bool fileModified;
 
-    // New: Search & Replace
     std::string searchQuery;
     bool searchMode;
 
 public:
     BasicEditor()
         : cursorY(0), cursorX(0), scrollY(0),
-          showingSuggestions(false), selectedSuggestion(0),
-          phraseStore("data/phrases.txt"),
-          freqStore("data/frequency.txt"),
-          ranker(&freqStore, &graph),
-          currentFileName(""),
-          fileModified(false),
-          searchMode(false) {
+        showingSuggestions(false), selectedSuggestion(0),
+        phraseStore("data/phrases.txt"),
+        freqStore("data/frequency.txt"),
+        ranker(&freqStore, &graph),
+        currentFileName(""),
+        fileModified(false),
+        searchMode(false) {
 
         lines.push_back("");
                 loadDictionary();
 
-                // Ensure local scratch directory exists so new users (who have scratch in .gitignore)
-                // don't get path errors when saving files from the editor.
                 std::error_code ec;
                 std::filesystem::create_directories("scratch", ec);
-                // it's fine if this fails (permissions), saveFile will handle errors and report them to user
+                
     }
 
     void loadDictionary() {
@@ -69,6 +80,7 @@ public:
         while (file >> word) {
             if (!word.empty()) {
                 tst.insert(word);
+                dictionaryWords.push_back(word);
             }
         }
         file.close();
@@ -81,7 +93,7 @@ public:
         noecho();
         curs_set(1);
 
-        // Initialize colors for syntax highlighting
+        //Colors for syntax highlighting
         start_color();
         init_pair(1, COLOR_BLUE, COLOR_BLACK);    // Keywords
         init_pair(2, COLOR_GREEN, COLOR_BLACK);   // Strings
@@ -243,7 +255,7 @@ private:
         std::string modifiedMark = fileModified ? " [+]" : "";
         attron(A_REVERSE);
         mvprintw(LINES - 2, 0, " %s%s | Line %d/%zu Col %d | %d phrases | Ctrl+O: Open | Ctrl+W: Save | Ctrl+R: Search | Ctrl+N: Next | Ctrl+H: Help | Ctrl+Q: Quit ",
-                 fileName.c_str(), modifiedMark.c_str(), cursorY + 1, lines.size(), cursorX + 1, phraseStore.getTotalPhrases());
+                fileName.c_str(), modifiedMark.c_str(), cursorY + 1, lines.size(), cursorX + 1, phraseStore.getTotalPhrases());
         attroff(A_REVERSE);
 
         // Clear rest of status line
@@ -317,6 +329,14 @@ private:
                 showHelp();
                 break;
 
+            case 26:  // Ctrl+Z - Undo
+                undoLastChange();
+                break;
+
+            case 25:  // Ctrl+Y - Redo
+                redoLastChange();
+                break;
+
             case KEY_UP:
                 if (showingSuggestions && selectedSuggestion > 0) {
                     selectedSuggestion--;
@@ -372,6 +392,9 @@ private:
                 break;
 
             case '\n':  // Enter with smart indentation
+                // C) Save to undo stack before modification
+                saveToUndoStack();
+
                 showingSuggestions = false;
                 {
                     // Allow unlimited lines with scrolling
@@ -432,6 +455,9 @@ private:
 
             case 127:  // Backspace
             case KEY_BACKSPACE:
+                // C) Save to undo stack before modification
+                saveToUndoStack();
+
                 showingSuggestions = false;
                 fileModified = true;
                 if (cursorX > 0) {
@@ -452,6 +478,9 @@ private:
 
             default:
                 if (ch >= 32 && ch <= 126) {
+                    // C) Save to undo stack before modification
+                    saveToUndoStack();
+
                     lines[cursorY].insert(cursorX, 1, ch);
                     cursorX++;
                     fileModified = true;
@@ -480,6 +509,48 @@ private:
         return true;
     }
 
+    // C) Undo/Redo using Stack
+    void saveToUndoStack() {
+        // Store current line state (simple: just track line content changes)
+        if (cursorY < (int)lines.size()) {
+            undoRedoStack.pushInsert(cursorY, lines[cursorY]);
+        }
+    }
+
+    void undoLastChange() {
+        if (!undoRedoStack.canUndo()) {
+            mvprintw(LINES - 1, 0, "Nothing to undo                                                                                                                                                              ");
+            refresh();
+            return;
+        }
+        auto [lineIdx, content] = undoRedoStack.undo();
+        if (lineIdx >= 0 && lineIdx < (int)lines.size()) {
+            lines[lineIdx] = content;
+            mvprintw(LINES - 1, 0, "Undo performed                                                                                                                                                                    ");
+            refresh();
+            getch();
+        }
+    }
+
+    void redoLastChange() {
+        if (!undoRedoStack.canRedo()) {
+            mvprintw(LINES - 1, 0, "Nothing to redo                                                                                                                                                              ");
+            refresh();
+            return;
+        }
+        auto [lineIdx, content] = undoRedoStack.redo();
+        if (lineIdx >= 0 && lineIdx < (int)lines.size()) {
+            lines[lineIdx] = content;
+            mvprintw(LINES - 1, 0, "Redo performed                                                                                                                                                                    ");
+            refresh();
+            getch();
+        }
+    }
+
+    void restoreState(const std::string& state) {
+        // Not needed anymore with UndoRedoStack
+    }
+
     void triggerAutocomplete() {
         std::string currentWord = getCurrentWord();
         if (currentWord.empty()) {
@@ -490,19 +561,76 @@ private:
         suggestions.clear();
         isPhraseFlag.clear();
 
-        // Get phrase suggestions
-        auto phrases = phraseStore.getTopPhrases(currentWord, 3);
-        for (const auto& phrase : phrases) {
-            suggestions.push_back("[PHRASE] " + phrase.snippet);
-            isPhraseFlag.push_back(true);
+        // B) Check LRU cache first
+        if (suggestionCache.exists(currentWord)) {
+            auto cached = suggestionCache.get(currentWord);
+            // Use cached suggestions if available
+            if (!cached.empty()) {
+                for (const auto& suggestion : cached) {
+                    suggestions.push_back(suggestion);
+                    isPhraseFlag.push_back(suggestion.find("[PHRASE]") == 0);
+                }
+                showingSuggestions = !suggestions.empty();
+                selectedSuggestion = 0;
+                return;
+            }
         }
 
-        // Get token suggestions
-        auto tokens = tst.prefixSearch(currentWord, 5);
-        for (const auto& token : tokens) {
-            double score = freqStore.get(token);
-            suggestions.push_back(token + " (" + std::to_string((int)score) + ")");
-            isPhraseFlag.push_back(false);
+        // A) Use MinHeap for ranking
+        suggestionHeap.clear(); // reset heap for new query
+
+        const int maxSuggestions = 10;
+        std::unordered_set<std::string> seen;
+
+        // 1) Phrase suggestions
+        auto phrases = phraseStore.getTopPhrases(currentWord, 3);
+        for (const auto& phrase : phrases) {
+            std::string displayStr = "[PHRASE] " + phrase.snippet;
+            suggestionHeap.insert(5.0, displayStr); // phrase priority: 5.0
+            seen.insert(phrase.snippet);
+        }
+
+        // 2) Prefix token suggestions from TST
+        int need = maxSuggestions - suggestionHeap.size();
+        if (need > 0) {
+            auto tokens = tst.prefixSearch(currentWord, need);
+            for (const auto& token : tokens) {
+                if (seen.find(token) != seen.end()) continue;
+                double score = freqStore.get(token);
+                suggestionHeap.insert(score, token);
+                seen.insert(token);
+            }
+        }
+
+        // 3) Substring matches using KMP
+        need = maxSuggestions - suggestionHeap.size();
+        if (need > 0) {
+            for (const auto& word : dictionaryWords) {
+                if ((int)suggestionHeap.size() >= maxSuggestions) break;
+                if (seen.find(word) != seen.end()) continue;
+                if (word.rfind(currentWord, 0) == 0) continue; // skip prefix matches
+                if (KMP::contains(word, currentWord)) {
+                    double score = freqStore.get(word);
+                    suggestionHeap.insert(score, word);
+                    seen.insert(word);
+                }
+            }
+        }
+
+        // Extract all from heap and build suggestions list
+        auto heapResults = suggestionHeap.getAll();
+        // Sort by score (descending)
+        std::sort(heapResults.begin(), heapResults.end(), 
+                 [](const auto& a, const auto& b) { return a.first > b.first; });
+
+        for (const auto& [score, suggestion] : heapResults) {
+            suggestions.push_back(suggestion);
+            isPhraseFlag.push_back(suggestion.find("[PHRASE]") == 0);
+        }
+
+        // B) Store in LRU cache for next time
+        if (!suggestions.empty()) {
+            suggestionCache.put(currentWord, suggestions);
         }
 
         showingSuggestions = !suggestions.empty();
@@ -771,6 +899,8 @@ private:
         mvprintw(line++, 4, "Ctrl+W           - Save file (Write)");
         mvprintw(line++, 4, "Ctrl+R           - Find/Search text");
         mvprintw(line++, 4, "Ctrl+N           - Find next match (after Ctrl+R)");
+        mvprintw(line++, 4, "Ctrl+Z           - Undo last change");
+        mvprintw(line++, 4, "Ctrl+Y           - Redo change");
         mvprintw(line++, 4, "[+] indicator    - Shows unsaved changes in status bar");
         attroff(COLOR_PAIR(2));
         line++;
