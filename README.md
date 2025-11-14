@@ -176,7 +176,7 @@ To verify components:
 
 
 ## Contributors 
-| Name               | Roll number | GitHub                                                                                                                       |
+| Name               | Roll number          |          GitHub                                                                                                                       |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | Tanisha Ray        | B24CM1061 | [![GitHub](https://img.shields.io/badge/-@tanisharay-181717?logo=github&style=flat)](https://github.com/coderTanisha22)      |
 | Maahi Ratanpara    | B24CS1040 |[![GitHub](https://img.shields.io/badge/-@maahiratanpara-181717?logo=github&style=flat)](https://github.com/maahi271005)     |
