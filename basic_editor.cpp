@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
 
 #include "tst.h"
 #include "phrase_store.h"
@@ -610,9 +611,22 @@ private:
             filename = fname;
         }
 
-        std::ofstream file(filename);
+        // Ensure we save into `scratch/` for local editor-created files when a simple filename is provided
+        std::string finalPath = filename;
+        if (filename.empty()) {
+            // handled above
+        } else {
+            // If user provided just a filename (no directories) and it's not an absolute path, place it under scratch/
+            if (filename.find('/') == std::string::npos && filename[0] != '/') {
+                std::error_code ec;
+                std::filesystem::create_directories("scratch", ec);
+                finalPath = std::string("scratch/") + filename;
+            }
+        }
+
+        std::ofstream file(finalPath);
         if (!file.is_open()) {
-            mvprintw(LINES - 1, 0, "Error: Could not save file '%s'", filename.c_str());
+            mvprintw(LINES - 1, 0, "Error: Could not save file '%s'", finalPath.c_str());
             refresh();
             getch();
             return;
@@ -626,10 +640,10 @@ private:
         }
         file.close();
 
-        currentFileName = filename;
+        currentFileName = finalPath;
         fileModified = false;
 
-        mvprintw(LINES - 1, 0, "Saved '%s' (%zu lines)", filename.c_str(), lines.size());
+        mvprintw(LINES - 1, 0, "Saved '%s' (%zu lines)", currentFileName.c_str(), lines.size());
         refresh();
         getch();
     }
