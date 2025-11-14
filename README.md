@@ -84,6 +84,9 @@ This results in fast, memory-efficient, and intelligent autocomplete suggestions
 - Autocomplete suggestions based on prefix  
 - Suggestions ranked by frequency  
 - Snippet support (e.g., `fori` → `for (int i = 0; i < n; i++)`)  
+ - Combined suggestion pipeline (phrases, prefix, and substring matches) — returns up to 10 suggestions.
+ - Top-K ranking uses a MinHeap and frequency/co-occurrence signals; recent results are cached in an LRU for responsiveness.
+ - Editor behavior: files saved to `scratch/` by default (created automatically) and Undo/Redo is supported (Ctrl+Z / Ctrl+Y).
 - Practical demonstration of Trie + Hash Map + Heap working together
 
 ## Tech Stack Used
@@ -118,8 +121,6 @@ This results in fast, memory-efficient, and intelligent autocomplete suggestions
 ---
 ### 1. Clone the repository
 - git clone https://github.com/maahi271005/Smart-Code-Autocomplete-Engine-DSA-Project
-- cd smart_autocomplete
-
 ---
 
 
@@ -134,27 +135,40 @@ If your project uses Python utilities or scripts (e.g., preprocessing):
 
 ### 3. Install build tools (for Linux/Ubuntu)
 - sudo apt update
-- sudo apt install build-essential
+- sudo apt install build-essential g++ libncurses-dev
 
 ---
 ### 4. Build the project
+### 4. Build the project
 
-Use the provided Makefile:
+Use the root `Makefile`. 
+Build the terminal editor:
 
-- make clean
-- make
+```bash
+make basic_editor
 
+# produces `./basic_editor`
+```
+If you prefer to compile the editor manually:
 
-This will generate the executable:
-
-- ./smart_autocomplete
+```bash
+g++ -std=c++17 basic_editor.cpp \
+	src/tst.cpp src/phrase_store.cpp src/freq_store.cpp src/ranker.cpp src/graph.cpp \
+	src/minheap.cpp src/lru.cpp src/stack.cpp src/kmp.cpp \
+	-lncurses -Iinclude -o basic_editor
+```
 
 ---
 ### 5. Run the program
-./smart_autocomplete
+
+- Run the editor:
+
+	./basic_editor
 
 
-If you encounter GLIBCXX_3.4.32 not found, simply rebuild the project on your machine (make clean && make) to link against your local C++ standard library.
+Notes:
+- `scratch/` is created automatically by `basic_editor` and is ignored by git; editor-saved local files will go there by default.
+- If you downloaded pre-built binaries and see errors about GLIBCXX or GLIBC versions, rebuild locally (e.g., `make clean && make`) to link against your machine's C++ runtime.
 
 ---
 ## Running Tests
@@ -177,11 +191,11 @@ To verify components:
 
 ## Contributors 
 
-| Name               | Roll Number | GitHub |
-|--------------------|-------------|--------|
-| Tanisha Ray        | B24CM1061   | [![GitHub](https://img.shields.io/badge/-@tanisharay-181717?logo=github&style=flat)](https://github.com/coderTanisha22) |
-| Maahi Ratanpara    | B24CS1040   | [![GitHub](https://img.shields.io/badge/-@maahiratanpara-181717?logo=github&style=flat)](https://github.com/maahi271005) |
-| Anika Sharma       | B24CM1009   | [![GitHub](https://img.shields.io/badge/-@anikasharma-181717?logo=github&style=flat)](https://github.com/Anika438) |
+| Name               | Roll Number | GitHub                                                                                                                       |
+| ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Tanisha Ray        | B24CM1061   | [![GitHub](https://img.shields.io/badge/-@tanisharay-181717?logo=github&style=flat)](https://github.com/coderTanisha22)      |
+| Maahi Ratanpara    | B24CS1040   | [![GitHub](https://img.shields.io/badge/-@maahiratanpara-181717?logo=github&style=flat)](https://github.com/maahi271005)     |
+| Anika Sharma       | B24CM1009   | [![GitHub](https://img.shields.io/badge/-@anikasharma-181717?logo=github&style=flat)](https://github.com/Anika438)           |
 | Akshita Maheshwari | B24CM1006   | [![GitHub](https://img.shields.io/badge/-@akshitamaheshwari-181717?logo=github&style=flat)](https://github.com/AkshitaM1234) |
 
 

@@ -6,6 +6,7 @@ dsavenv/
 FEATURES.txt
 HELP_UPDATED.txt
 SEARCH_UPDATED.txt
+.vscode/
 
 # Compiled binaries
 smart_autocomplete
