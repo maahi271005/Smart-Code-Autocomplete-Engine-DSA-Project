@@ -1,5 +1,5 @@
-return|return 0;}|1
-for|for(i=0;i<n;i++)|1
-while|while(condition){continue;}|1
-int|int main(){return 0;}|1
 #include|#include<stdio.h>|3
+int|int main(){return 0;}|1
+while|while(condition){continue;}|1
+for|for(i=0;i<n;i++)|1
+return|return 0;}|1
