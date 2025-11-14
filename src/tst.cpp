@@ -122,9 +122,7 @@ bool TST::search(const std::string& word) {
     return (node != nullptr && i == word.length() && node->isEndOfString);
 }
 
-
 void TST::getAllWords(std::vector<std::string>& results) {
     collectWords(root, "", results);
 }
-
 

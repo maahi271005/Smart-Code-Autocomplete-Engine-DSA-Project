@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <cstring>
+#include <algorithm>
 
 #include "tst.h"
 #include "phrase_store.h"
@@ -29,13 +31,24 @@ private:
     Ranker ranker;
     std::string lastAcceptedWord;
 
+    // New: File management
+    std::string currentFileName;
+    bool fileModified;
+
+    // New: Search & Replace
+    std::string searchQuery;
+    bool searchMode;
+
 public:
     BasicEditor()
         : cursorY(0), cursorX(0), scrollY(0),
           showingSuggestions(false), selectedSuggestion(0),
           phraseStore("data/phrases.txt"),
           freqStore("data/frequency.txt"),
-          ranker(&freqStore, &graph) {
+          ranker(&freqStore, &graph),
+          currentFileName(""),
+          fileModified(false),
+          searchMode(false) {
 
         lines.push_back("");
         loadDictionary();
@@ -61,6 +74,16 @@ public:
         noecho();
         curs_set(1);
 
+        // Initialize colors for syntax highlighting
+        start_color();
+        init_pair(1, COLOR_BLUE, COLOR_BLACK);    // Keywords
+        init_pair(2, COLOR_GREEN, COLOR_BLACK);   // Strings
+        init_pair(3, COLOR_CYAN, COLOR_BLACK);    // Comments
+        init_pair(4, COLOR_YELLOW, COLOR_BLACK);  // Numbers
+        init_pair(5, COLOR_MAGENTA, COLOR_BLACK); // Preprocessor
+        init_pair(6, COLOR_RED, COLOR_BLACK);     // Operators
+        init_pair(7, COLOR_WHITE, COLOR_BLUE);    // Selection/Highlight
+
         bool running = true;
         while (running) {
             draw();
@@ -74,16 +97,120 @@ public:
     }
 
 private:
+    bool isKeyword(const std::string& word) {
+        static const std::vector<std::string> keywords = {
+            "auto", "break", "case", "char", "const", "continue", "default", "do",
+            "double", "else", "enum", "extern", "float", "for", "goto", "if",
+            "int", "long", "register", "return", "short", "signed", "sizeof", "static",
+            "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while",
+            "class", "namespace", "template", "public", "private", "protected", "virtual",
+            "bool", "true", "false", "nullptr", "new", "delete", "try", "catch", "throw",
+            "using", "std", "string", "vector", "map", "set", "include", "define", "ifdef"
+        };
+        return std::find(keywords.begin(), keywords.end(), word) != keywords.end();
+    }
+
+    void drawLineWithSyntax(int y, int lineNum, const std::string& line) {
+        mvprintw(y, 0, "%3d | ", lineNum);
+        int x = 6;
+
+        for (size_t i = 0; i < line.length(); i++) {
+            // Handle strings
+            if (line[i] == '"' || line[i] == '\'') {
+                char quote = line[i];
+                attron(COLOR_PAIR(2));
+                mvaddch(y, x++, line[i]);
+                i++;
+                while (i < line.length() && line[i] != quote) {
+                    mvaddch(y, x++, line[i]);
+                    if (line[i] == '\\' && i + 1 < line.length()) {
+                        i++;
+                        mvaddch(y, x++, line[i]);
+                    }
+                    i++;
+                }
+                if (i < line.length()) mvaddch(y, x++, line[i]);
+                attroff(COLOR_PAIR(2));
+                continue;
+            }
+
+            // Handle comments
+            if (i + 1 < line.length() && line[i] == '/' && line[i+1] == '/') {
+                attron(COLOR_PAIR(3));
+                while (i < line.length()) {
+                    mvaddch(y, x++, line[i++]);
+                }
+                attroff(COLOR_PAIR(3));
+                break;
+            }
+
+            // Handle preprocessor
+            if (line[i] == '#') {
+                attron(COLOR_PAIR(5));
+                std::string word;
+                while (i < line.length() && (isalnum(line[i]) || line[i] == '#' || line[i] == '_')) {
+                    word += line[i];
+                    mvaddch(y, x++, line[i++]);
+                }
+                attroff(COLOR_PAIR(5));
+                i--;
+                continue;
+            }
+
+            // Handle numbers
+            if (isdigit(line[i])) {
+                attron(COLOR_PAIR(4));
+                while (i < line.length() && (isdigit(line[i]) || line[i] == '.')) {
+                    mvaddch(y, x++, line[i++]);
+                }
+                attroff(COLOR_PAIR(4));
+                i--;
+                continue;
+            }
+
+            // Handle operators
+            if (strchr("+-*/%=<>!&|^~?:;,(){}[]", line[i])) {
+                attron(COLOR_PAIR(6));
+                mvaddch(y, x++, line[i]);
+                attroff(COLOR_PAIR(6));
+                continue;
+            }
+
+            // Handle keywords and identifiers
+            if (isalnum(line[i]) || line[i] == '_') {
+                std::string word;
+                size_t start = i;
+                while (i < line.length() && (isalnum(line[i]) || line[i] == '_')) {
+                    word += line[i++];
+                }
+                i--;
+
+                if (isKeyword(word)) {
+                    attron(COLOR_PAIR(1) | A_BOLD);
+                    mvprintw(y, x, "%s", word.c_str());
+                    attroff(COLOR_PAIR(1) | A_BOLD);
+                } else {
+                    mvprintw(y, x, "%s", word.c_str());
+                }
+                x += word.length();
+                continue;
+            }
+
+            // Default: print character as-is
+            mvaddch(y, x++, line[i]);
+        }
+    }
+
     void draw() {
         clear();
 
         // Calculate how many lines we can show
         int maxLines = LINES - 3;
 
-        // Draw lines with scrolling
+        // Draw lines with syntax highlighting
         for (int i = 0; i < maxLines && (scrollY + i) < lines.size(); i++) {
             int lineNum = scrollY + i + 1;
-            mvprintw(i, 0, "%3d | %s", lineNum, lines[scrollY + i].c_str());
+            drawLineWithSyntax(i, lineNum, lines[scrollY + i]);
         }
 
         // Draw suggestions popup
@@ -104,9 +231,18 @@ private:
             }
         }
 
-        // Status bar
-        mvprintw(LINES - 2, 0, "Line %d/%zu Col %d | %d phrases | Ctrl+H: Help | Ctrl+S: Save Phrase | Ctrl+Q: Quit",
-                 cursorY + 1, lines.size(), cursorX + 1, phraseStore.getTotalPhrases());
+        // Status bar with file info
+        std::string fileName = currentFileName.empty() ? "[No Name]" : currentFileName;
+        std::string modifiedMark = fileModified ? " [+]" : "";
+        attron(A_REVERSE);
+        mvprintw(LINES - 2, 0, " %s%s | Line %d/%zu Col %d | %d phrases | Ctrl+O: Open | Ctrl+W: Save | Ctrl+R: Search | Ctrl+N: Next | Ctrl+H: Help | Ctrl+Q: Quit ",
+                 fileName.c_str(), modifiedMark.c_str(), cursorY + 1, lines.size(), cursorX + 1, phraseStore.getTotalPhrases());
+        attroff(A_REVERSE);
+
+        // Clear rest of status line
+        for (int i = fileName.length() + 130; i < COLS; i++) {
+            mvaddch(LINES - 2, i, ' ');
+        }
 
         // Position cursor - calculate display position relative to scroll
         int displayY = cursorY - scrollY;
@@ -136,7 +272,34 @@ private:
     bool handleInput(int ch) {
         switch (ch) {
             case 17:  // Ctrl+Q
+                if (fileModified) {
+                    // Show confirmation dialog
+                    mvprintw(LINES - 1, 0, "File modified. Save? (y/n/c to cancel): ");
+                    refresh();
+                    int confirm = getch();
+                    if (confirm == 'y' || confirm == 'Y') {
+                        saveFile();
+                    } else if (confirm == 'c' || confirm == 'C') {
+                        return true;  // Don't quit
+                    }
+                }
                 return false;
+
+            case 15:  // Ctrl+O - Open file
+                openFile();
+                break;
+
+            case 23:  // Ctrl+W - Write/Save file
+                saveFile();
+                break;
+
+            case 18:  // Ctrl+R - Find/Search (R for seaRch)
+                searchFile();
+                break;
+
+            case 14:  // Ctrl+N - Find Next
+                findNext();
+                break;
 
             case 16:  // Ctrl+P - Save phrase
             case 19:  // Ctrl+S - Save phrase (alternative)
@@ -263,6 +426,7 @@ private:
             case 127:  // Backspace
             case KEY_BACKSPACE:
                 showingSuggestions = false;
+                fileModified = true;
                 if (cursorX > 0) {
                     lines[cursorY].erase(cursorX - 1, 1);
                     cursorX--;
@@ -283,6 +447,7 @@ private:
                 if (ch >= 32 && ch <= 126) {
                     lines[cursorY].insert(cursorX, 1, ch);
                     cursorX++;
+                    fileModified = true;
 
                     // Auto-close brackets
                     if (ch == '(') {
@@ -386,15 +551,224 @@ private:
         return line.substr(start, end - start);
     }
 
+    void openFile() {
+        echo();
+        mvprintw(LINES - 1, 0, "Open file: ");
+        clrtoeol();
+        refresh();
+
+        char filename[256];
+        getnstr(filename, 255);
+        noecho();
+
+        if (strlen(filename) == 0) return;
+
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            mvprintw(LINES - 1, 0, "Error: Could not open file '%s'", filename);
+            refresh();
+            getch();
+            return;
+        }
+
+        lines.clear();
+        std::string line;
+        while (std::getline(file, line)) {
+            lines.push_back(line);
+        }
+        file.close();
+
+        if (lines.empty()) {
+            lines.push_back("");
+        }
+
+        currentFileName = filename;
+        fileModified = false;
+        cursorY = 0;
+        cursorX = 0;
+        scrollY = 0;
+
+        mvprintw(LINES - 1, 0, "Loaded '%s' (%zu lines)", filename, lines.size());
+        refresh();
+        getch();
+    }
+
+    void saveFile() {
+        std::string filename = currentFileName;
+
+        if (filename.empty()) {
+            echo();
+            mvprintw(LINES - 1, 0, "Save as: ");
+            clrtoeol();
+            refresh();
+
+            char fname[256];
+            getnstr(fname, 255);
+            noecho();
+
+            if (strlen(fname) == 0) return;
+            filename = fname;
+        }
+
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            mvprintw(LINES - 1, 0, "Error: Could not save file '%s'", filename.c_str());
+            refresh();
+            getch();
+            return;
+        }
+
+        for (size_t i = 0; i < lines.size(); i++) {
+            file << lines[i];
+            if (i < lines.size() - 1) {
+                file << "\n";
+            }
+        }
+        file.close();
+
+        currentFileName = filename;
+        fileModified = false;
+
+        mvprintw(LINES - 1, 0, "Saved '%s' (%zu lines)", filename.c_str(), lines.size());
+        refresh();
+        getch();
+    }
+
+    void searchFile() {
+        echo();
+        mvprintw(LINES - 1, 0, "Search: ");
+        clrtoeol();
+        refresh();
+
+        char query[256];
+        getnstr(query, 255);
+        noecho();
+
+        if (strlen(query) == 0) return;
+
+        searchQuery = query;
+
+        // Search from current position
+        for (size_t i = cursorY; i < lines.size(); i++) {
+            size_t pos = lines[i].find(searchQuery, (i == cursorY) ? cursorX + 1 : 0);
+            if (pos != std::string::npos) {
+                cursorY = i;
+                cursorX = pos;
+                updateScroll();
+                mvprintw(LINES - 1, 0, "Found at line %zu, column %zu (Ctrl+N for next)", i + 1, pos + 1);
+                refresh();
+                return;
+            }
+        }
+
+        // Wrap around
+        for (size_t i = 0; i < cursorY; i++) {
+            size_t pos = lines[i].find(searchQuery);
+            if (pos != std::string::npos) {
+                cursorY = i;
+                cursorX = pos;
+                updateScroll();
+                mvprintw(LINES - 1, 0, "Found at line %zu, column %zu (wrapped, Ctrl+N for next)", i + 1, pos + 1);
+                refresh();
+                return;
+            }
+        }
+
+        mvprintw(LINES - 1, 0, "Not found: '%s'", searchQuery.c_str());
+        refresh();
+        getch();
+    }
+
+    void findNext() {
+        if (searchQuery.empty()) {
+            mvprintw(LINES - 1, 0, "No search query. Press Ctrl+R to search first.");
+            refresh();
+            getch();
+            return;
+        }
+
+        // Search from next position after current cursor
+        for (size_t i = cursorY; i < lines.size(); i++) {
+            size_t startPos = (i == cursorY) ? cursorX + 1 : 0;
+            size_t pos = lines[i].find(searchQuery, startPos);
+            if (pos != std::string::npos) {
+                cursorY = i;
+                cursorX = pos;
+                updateScroll();
+                mvprintw(LINES - 1, 0, "Found at line %zu, column %zu (Ctrl+N for next)", i + 1, pos + 1);
+                refresh();
+                return;
+            }
+        }
+
+        // Wrap around to beginning
+        for (size_t i = 0; i <= cursorY; i++) {
+            size_t pos = lines[i].find(searchQuery);
+            if (pos != std::string::npos) {
+                // Skip the current match
+                if (i == cursorY && pos == cursorX) {
+                    continue;
+                }
+                cursorY = i;
+                cursorX = pos;
+                updateScroll();
+                mvprintw(LINES - 1, 0, "Found at line %zu, column %zu (wrapped, Ctrl+N for next)", i + 1, pos + 1);
+                refresh();
+                return;
+            }
+        }
+
+        mvprintw(LINES - 1, 0, "No more matches for '%s'", searchQuery.c_str());
+        refresh();
+        getch();
+    }
+
     void showHelp() {
         clear();
 
         // Title
-        attron(A_BOLD);
+        attron(A_BOLD | COLOR_PAIR(1));
         mvprintw(1, 2, "=== SMART CODE AUTOCOMPLETE EDITOR - HELP ===");
-        attroff(A_BOLD);
+        attroff(A_BOLD | COLOR_PAIR(1));
 
         int line = 3;
+
+        // File Operations - NEW!
+        attron(A_UNDERLINE | COLOR_PAIR(5));
+        mvprintw(line++, 2, "FILE OPERATIONS (NEW!):");
+        attroff(A_UNDERLINE | COLOR_PAIR(5));
+        attron(COLOR_PAIR(2));
+        mvprintw(line++, 4, "Ctrl+O           - Open file");
+        mvprintw(line++, 4, "Ctrl+W           - Save file (Write)");
+        mvprintw(line++, 4, "Ctrl+R           - Find/Search text");
+        mvprintw(line++, 4, "Ctrl+N           - Find next match (after Ctrl+R)");
+        mvprintw(line++, 4, "[+] indicator    - Shows unsaved changes in status bar");
+        attroff(COLOR_PAIR(2));
+        line++;
+
+        // Syntax Highlighting - NEW!
+        attron(A_UNDERLINE | COLOR_PAIR(5));
+        mvprintw(line++, 2, "SYNTAX HIGHLIGHTING (NEW!):");
+        attroff(A_UNDERLINE | COLOR_PAIR(5));
+        attron(COLOR_PAIR(1));
+        mvprintw(line++, 4, "Keywords         - Blue bold (for, if, while, class, int...)");
+        attroff(COLOR_PAIR(1));
+        attron(COLOR_PAIR(2));
+        mvprintw(line++, 4, "Strings          - Green (\"hello\", 'c')");
+        attroff(COLOR_PAIR(2));
+        attron(COLOR_PAIR(3));
+        mvprintw(line++, 4, "Comments         - Cyan (// comment)");
+        attroff(COLOR_PAIR(3));
+        attron(COLOR_PAIR(4));
+        mvprintw(line++, 4, "Numbers          - Yellow (123, 45.67)");
+        attroff(COLOR_PAIR(4));
+        attron(COLOR_PAIR(5));
+        mvprintw(line++, 4, "Preprocessor     - Magenta (#include, #define)");
+        attroff(COLOR_PAIR(5));
+        attron(COLOR_PAIR(6));
+        mvprintw(line++, 4, "Operators        - Red (+, -, *, /, =, <, >)");
+        attroff(COLOR_PAIR(6));
+        line++;
 
         // Navigation
         attron(A_UNDERLINE);
@@ -432,14 +806,6 @@ private:
         mvprintw(line++, 4, "Smart indent     - Auto-indent after { or (");
         mvprintw(line++, 4, "Bracket match    - Press Enter between {} for auto-format");
         mvprintw(line++, 4, "Scrolling        - Unlimited lines with auto-scroll");
-        line++;
-
-        // Other
-        attron(A_UNDERLINE);
-        mvprintw(line++, 2, "OTHER COMMANDS:");
-        attroff(A_UNDERLINE);
-        mvprintw(line++, 4, "Ctrl+H           - Show this help screen");
-        mvprintw(line++, 4, "Ctrl+Q           - Quit editor");
         line++;
 
         // Data Structures
