@@ -176,12 +176,13 @@ To verify components:
 
 
 ## Contributors 
-| Name               | Roll number          |          GitHub                                                                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Tanisha Ray        | B24CM1061 | [![GitHub](https://img.shields.io/badge/-@tanisharay-181717?logo=github&style=flat)](https://github.com/coderTanisha22)      |
-| Maahi Ratanpara    | B24CS1040 |[![GitHub](https://img.shields.io/badge/-@maahiratanpara-181717?logo=github&style=flat)](https://github.com/maahi271005)     |
-| Anika Sharma       | B24CM1009 |[![GitHub](https://img.shields.io/badge/-@anikasharma-181717?logo=github&style=flat)](https://github.com/Anika438)           |
-| Akshita Maheshwari | B24CM1006 |[![GitHub](https://img.shields.io/badge/-@akshitamaheshwari-181717?logo=github&style=flat)](https://github.com/AkshitaM1234) |
+
+| Name               | Roll Number | GitHub |
+|--------------------|-------------|--------|
+| Tanisha Ray        | B24CM1061   | [![GitHub](https://img.shields.io/badge/-@tanisharay-181717?logo=github&style=flat)](https://github.com/coderTanisha22) |
+| Maahi Ratanpara    | B24CS1040   | [![GitHub](https://img.shields.io/badge/-@maahiratanpara-181717?logo=github&style=flat)](https://github.com/maahi271005) |
+| Anika Sharma       | B24CM1009   | [![GitHub](https://img.shields.io/badge/-@anikasharma-181717?logo=github&style=flat)](https://github.com/Anika438) |
+| Akshita Maheshwari | B24CM1006   | [![GitHub](https://img.shields.io/badge/-@akshitamaheshwari-181717?logo=github&style=flat)](https://github.com/AkshitaM1234) |
 
 
 ---
