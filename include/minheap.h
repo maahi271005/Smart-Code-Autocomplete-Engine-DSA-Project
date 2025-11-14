@@ -5,39 +5,39 @@
 #include <string>
 #include <utility>
 
-class MinHeap {
+class MinHeap{
 private:
-    std::vector<std::pair<double, std::string>> heap;
+    std::vector<std::pair<double,std::string>> heap;
     int maxSize;
     
     void heapifyUp(int index);
     void heapifyDown(int index);
     int parent(int i){
-        return (i - 1) / 2; 
+        return (i-1)/2; 
     }
     int leftChild(int i){ 
-        return 2 * i + 1;
+        return 2*i+1;
     }
     int rightChild(int i){
-        return 2 * i + 2;
+        return 2*i+2;
     }
 
     public:
     MinHeap(int k);
-    void insert(double score, const std::string& word);
+    void insert(double score,const std::string& word);
 
-    std::pair<double, std::string> extractMin();
-    std::pair<double, std::string> getMin();
+    std::pair<double,std::string> extractMin();
+    std::pair<double,std::string> getMin();
     int size() const{
         return heap.size(); 
     }
-    bool isEmpty() const {
+    bool isEmpty() const{
         return heap.empty(); 
     }
-    bool isFull() const {
-        return heap.size() >= maxSize;
+    bool isFull() const{
+        return heap.size()>=maxSize;
     }
-    std::vector<std::pair<double, std::string>> getAll();
+    std::vector<std::pair<double,std::string>> getAll();
     void clear();
 };
 
