@@ -2,10 +2,10 @@
 ║   SMART CODE AUTOCOMPLETE - ADVANCED FEATURES               ║
 ╚══════════════════════════════════════════════════════════════╝
 
-🎨 NEW FEATURES ADDED
+ NEW FEATURES ADDED
 ═══════════════════════════════════════════════════════════════
 
-✅ SYNTAX HIGHLIGHTING
+ SYNTAX HIGHLIGHTING
    • Keywords (for, if, while, class, int...) → BLUE (Bold)
    • Strings ("hello", 'c') → GREEN
    • Comments (// ...) → CYAN
@@ -13,19 +13,19 @@
    • Preprocessor (#include, #define) → MAGENTA
    • Operators (+, -, *, /, =, <, >) → RED
 
-✅ FILE OPERATIONS
+ FILE OPERATIONS
    • Open File → Ctrl+O
    • Save File → Ctrl+W
    • Modified Indicator → [+] in status bar
    • Confirmation before quit if unsaved
 
-✅ SEARCH & FIND
+ SEARCH & FIND
    • Find Text → Ctrl+R
    • Wrap-around search
    • Jump to match location
    • Shows line and column numbers
 
-✅ ENHANCED STATUS BAR
+ ENHANCED STATUS BAR
    • Shows filename
    • Line/Column position
    • Modified indicator [+]
@@ -33,7 +33,7 @@
    • Keyboard shortcuts
 
 
-⌨️  KEYBOARD SHORTCUTS
+  KEYBOARD SHORTCUTS
 ═══════════════════════════════════════════════════════════════
 
 FILE OPERATIONS
@@ -56,7 +56,7 @@ HELP
   Ctrl+H          Show help screen
 
 
-🎨 SYNTAX HIGHLIGHTING EXAMPLES
+ SYNTAX HIGHLIGHTING EXAMPLES
 ═══════════════════════════════════════════════════════════════
 
 What you type:
@@ -76,7 +76,7 @@ What you see:
   }
 
 
-💡 AUTOCOMPLETE IN ACTION
+ AUTOCOMPLETE IN ACTION
 ═══════════════════════════════════════════════════════════════
 
 1. Type: fo
@@ -95,7 +95,7 @@ What you see:
    → Your phrase appears with [PHRASE] marker!
 
 
-📁 FILE OPERATIONS IN ACTION
+ FILE OPERATIONS IN ACTION
 ═══════════════════════════════════════════════════════════════
 
 1. Press Ctrl+O
@@ -118,7 +118,7 @@ What you see:
    → Otherwise: Quits immediately
 
 
-🔍 SEARCH IN ACTION
+ SEARCH IN ACTION
 ═══════════════════════════════════════════════════════════════
 
 1. Press Ctrl+R
@@ -132,7 +132,7 @@ What you see:
    → Can continue editing from there
 
 
-🎯 STATUS BAR FEATURES
+ STATUS BAR FEATURES
 ═══════════════════════════════════════════════════════════════
 
 Shows:
@@ -147,7 +147,7 @@ Breakdown:
   • Shortcuts → Quick reference
 
 
-🏆 WHAT MAKES THIS ADVANCED
+ WHAT MAKES THIS ADVANCED
 ═══════════════════════════════════════════════════════════════
 
 BEFORE (Basic Demo):
@@ -237,7 +237,7 @@ Show:
   5. Explain: TST, MinHeap, HashMap, Graph all working together
 
 
-✨ YOU NOW HAVE A PRODUCTION-GRADE CODE EDITOR! ✨
+YOU NOW HAVE A PRODUCTION-GRADE CODE EDITOR! 
 
 ═══════════════════════════════════════════════════════════════
 
