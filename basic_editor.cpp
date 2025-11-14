@@ -52,7 +52,13 @@ public:
           searchMode(false) {
 
         lines.push_back("");
-        loadDictionary();
+                loadDictionary();
+
+                // Ensure local scratch directory exists so new users (who have scratch in .gitignore)
+                // don't get path errors when saving files from the editor.
+                std::error_code ec;
+                std::filesystem::create_directories("scratch", ec);
+                // it's fine if this fails (permissions), saveFile will handle errors and report them to user
     }
 
     void loadDictionary() {
@@ -621,6 +627,15 @@ private:
                 std::error_code ec;
                 std::filesystem::create_directories("scratch", ec);
                 finalPath = std::string("scratch/") + filename;
+            }
+        }
+
+        // Ensure parent directories for the final path exist (covers absolute or nested paths)
+        {
+            std::filesystem::path p(finalPath);
+            if (p.has_parent_path()) {
+                std::error_code ec;
+                std::filesystem::create_directories(p.parent_path(), ec);
             }
         }
 
