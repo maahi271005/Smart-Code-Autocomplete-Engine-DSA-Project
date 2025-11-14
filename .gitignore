@@ -1,0 +1,15 @@
+#virtual environments
+venv/
+env/
+dsavenv/
+
+FEATURES.txt
+HELP_UPDATED.txt
+SEARCH_UPDATED.txt
+
+# Compiled binaries
+smart_autocomplete
+tst_test
+basic_editor
+*.o
+scartch
